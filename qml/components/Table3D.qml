@@ -23,7 +23,7 @@ Item {
     property var markerPoints: []
 
     // Hole cards sit on the felt in front of each display slot.
-    readonly property var holePoints: [[0.5, 0.79], [0.21, 0.7], [0.22, 0.38], [0.34, 0.22], [0.78, 0.38], [0.79, 0.7]]
+    readonly property var holePoints: [[0.5, 0.79], [0.21, 0.7], [0.25, 0.41], [0.39, 0.28], [0.75, 0.41], [0.79, 0.7]]
     readonly property var potPoint: [0.5, 0.27]
     readonly property var boardPoint: [0.5, 0.53]
 
@@ -61,6 +61,29 @@ Item {
     readonly property real straightHalf: dims ? dims.straightHalf : 0
     readonly property real railHeight: dims ? dims.railHeight : 0
     readonly property real apronDepth: dims ? dims.apronDepth : 0
+
+    // Opponents sit as 3D characters (assets/avatars/<name>); the human is the camera.
+    readonly property var characters: ["Avery", "Blake", "Casey", "Drew", "Emery"]
+    readonly property real seatBack: 14  // pelvis behind the rail's outer edge
+    readonly property real seatedHeadHeight: 50  // top of a seated character's head above the felt
+
+    // Where a character for display slot ``slot`` sits: behind the rail, facing the table.
+    function seatPlacement(slot) {
+        const p = world(seatPoints[slot] || [0.5, 0.5])
+        const cx = Math.max(-straightHalf, Math.min(straightHalf, p.x))
+        const length = Math.hypot(p.x - cx, p.z) || 1
+        const nx = (p.x - cx) / length, nz = p.z / length
+        const radius = outerDepth / 2 + seatBack
+        return {
+            position: Qt.vector3d(cx + nx * radius, 0, nz * radius),
+            yaw: Math.atan2(-nx, -nz) * 180 / Math.PI,
+            reach: seatBack + 5.5,  // to the middle of the rail's top
+        }
+    }
+
+    // What the characters watch: the player to act, else the board.
+    property vector3d watchPoint: world(boardPoint)
+    property int watchedSlot: -1
 
     function world(point, y) {
         return Qt.vector3d((point[0] - 0.5) * outerWidth, y || 0,
@@ -117,6 +140,15 @@ Item {
         ]
         for (const seat of seatPoints)
             points.push([(seat[0] - 0.5) * 2 * halfW, 0, (seat[1] - 0.5) * 2 * halfD])
+        // Seated characters: head and shoulders.
+        for (let slot = 1; slot < seatPoints.length; ++slot) {
+            const seat = seatPlacement(slot)
+            const yaw = seat.yaw * Math.PI / 180
+            const across = [Math.cos(yaw) * 26, -Math.sin(yaw) * 26]
+            points.push([seat.position.x, seatedHeadHeight, seat.position.z])
+            points.push([seat.position.x + across[0], 22, seat.position.z + across[1]])
+            points.push([seat.position.x - across[0], 22, seat.position.z - across[1]])
+        }
         // Margins in NDC: sides, top (far nameplate), bottom (human nameplate and labels).
         const side = 1 - 2 * 0.035, top = 1 - 2 * 0.075, bottom = -1 + 2 * 0.11
 
@@ -412,6 +444,42 @@ Item {
                     required property bool isSmallBlind
                     required property bool isBigBlind
                     required property var bestCards
+                    required property string name
+                    required property bool toAct
+                    required property bool allIn
+                    required property bool busted
+                    required property bool isWinner
+
+                    readonly property var placement: root.seatPlacement(slot)
+
+                    // Everyone watches the player to act (the human: the camera's side of the table).
+                    onToActChanged: {
+                        if (toAct) {
+                            root.watchedSlot = slot
+                            root.watchPoint = isHuman ? root.world([0.5, 1.15], 35)
+                                                      : placement.position.plus(Qt.vector3d(0, 40, 0))
+                        } else if (root.watchedSlot === slot) {
+                            root.watchedSlot = -1
+                            root.watchPoint = root.world(root.boardPoint)
+                        }
+                    }
+
+                    Player3D {
+                        objectName: "character3d_" + seat.slot
+                        character: !seat.isHuman && root.characters.indexOf(seat.name) >= 0 ? seat.name : ""
+                        visible: character !== "" && !seat.busted
+                        position: seat.placement.position
+                        eulerRotation.y: seat.placement.yaw
+                        handReach: seat.placement.reach
+                        handHeight: root.railHeight + 1
+                        animated: root.animated
+                        // Breathing redraws the scene continuously: not when rendering on the CPU.
+                        breathing: root.animated && !root.lowPower
+                        lean: seat.toAct ? 10 : seat.allIn ? 8 : seat.folded ? -7 : seat.isWinner ? -5 : 0
+                        nod: seat.toAct ? 16 : seat.folded ? 6 : seat.isWinner ? -8 : 3
+                        looking: !seat.toAct && root.watchedSlot !== seat.slot
+                        lookAt: root.watchPoint
+                    }
 
                     readonly property vector3d home: root.world(root.holePoints[slot])
                     readonly property vector3d seatPosition: root.world(root.seatPoints[slot])

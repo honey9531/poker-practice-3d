@@ -16,6 +16,10 @@ review your hands, statistics and replays.
   flip and lean up to be read, stacks of chips and dealer/blind pucks — with names, amounts and
   messages drawn crisply on top. The classic flat table is one click away in Settings, and is
   used automatically where 3D graphics are unavailable.
+- **Opponents as people:** on the 3D table each opponent is a realistic 3D character sitting at
+  the table with their arms on the rail. They watch whoever is to act (you included), lean in
+  and look down at their cards when thinking, sit back after folding, lean forward when all-in
+  and sit up when they win.
 - **Original vector artwork:** an antique-style deck — parchment faces, gold-rimmed pips, ornate
   aces and court cards robed in their suit's colours — with four card backs to choose from, plus
   casino chips, stacks and a padded table with textured felt.
@@ -148,6 +152,13 @@ python tools/generate_textures.py   # assets/table/felt_noise.png
 python tools/generate_icon.py       # assets/icon/app.svg, app.png, app.ico
 ```
 
+The opponents' 3D characters are imported, also once, and committed (about 6 MB). Re-run the
+import only to change them; it needs network access:
+
+```bash
+python tools/import_avatars.py      # assets/avatars/<Name>/ (QML component, mesh, textures)
+```
+
 ## Packaging for Windows
 
 PyInstaller builds a one-folder application: `dist\PokerPractice\PokerPractice.exe` plus its
@@ -183,8 +194,9 @@ On Linux, `packaging/build_linux.sh` builds and verifies `dist/PokerPractice/Pok
 - **Windows:** the Windows executable has **not** been built or run yet, because development so
   far used a Linux machine without Windows. The spec, the build script and the CI workflow are
   ready, and the CI workflow (or the build script on Windows) is the next verification step.
-- **Size:** the bundle is about 217 MB on Linux after removing unused Qt modules (see
-  `packaging/bundle_filter.py`); the Qt Quick 3D runtime accounts for about 13 MB of it. Windows
+- **Size:** the bundle is about 223 MB on Linux after removing unused Qt modules (see
+  `packaging/bundle_filter.py`); the Qt Quick 3D runtime accounts for about 13 MB of it and the
+  opponents' 3D characters for about 6 MB. Windows
   builds are usually smaller because system libraries are not bundled.
 - **3D on a GPU:** the 3D table has only been run with software rendering (Mesa llvmpipe) so far;
   its full-detail mode (shadows, ambient occlusion, multisampling) still needs a look on real
@@ -202,7 +214,7 @@ src/bridge/          QObjects and models exposed to QML (import PokerPractice.Br
 qml/Main.qml         application window and navigation
 qml/components/      theme, cards, chips, table (2D and 3D), seats, controls, dialogs
 qml/screens/         menu, setup, table/replay, statistics, history, settings, gallery
-assets/              generated card SVGs, felt texture, icon
+assets/              generated card SVGs, felt texture, icon; imported 3D characters
 packaging/           PyInstaller spec, bundle filter, build scripts
 tests/               pytest suite
 tools/               asset generators and QA tools
@@ -211,6 +223,13 @@ docs/                architecture notes
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design decisions, the exact rules
 implemented, and the definitions of each statistic.
+
+## Credits
+
+The opponents' 3D characters are from the
+[Microsoft Rocketbox Avatar Library](https://github.com/microsoft/Microsoft-Rocketbox)
+(MIT licence), converted with smaller textures; the licence and the list of characters used are
+in [assets/avatars/LICENSE.md](assets/avatars/LICENSE.md). All other artwork is original.
 
 ## Troubleshooting
 
