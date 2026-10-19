@@ -129,6 +129,11 @@ Rectangle {
         // Positions relative to the table rectangle, indexed by display slot
         // (0 = human at the bottom, then clockwise).
         readonly property var seatPoints: [[0.5, 1.04], [0.1, 0.82], [0.1, 0.22], [0.5, 0.03], [0.9, 0.22], [0.9, 0.82]]
+        // Nameplates. On the 3D table the players sit at the seat points as characters, so the
+        // far players' plates move onto the felt in front of them instead of covering their arms.
+        readonly property var platePoints: use3d
+            ? [[0.5, 1.04], [0.1, 0.82], [0.13, 0.27], [0.355, 0.115], [0.87, 0.27], [0.9, 0.82]]
+            : seatPoints
         // The 3D table keeps hole cards on the felt, so its bets and markers sit further in.
         readonly property var betPoints: use3d
             ? [[0.39, 0.64], [0.3, 0.62], [0.32, 0.4], [0.58, 0.25], [0.68, 0.4], [0.7, 0.62]]
@@ -327,7 +332,7 @@ Rectangle {
                     previousWon = wonAmount
                 }
                 // Centre the nameplate on the slot point.
-                readonly property point point: area.at(area.seatPoints[slot])
+                readonly property point point: area.at(area.platePoints[slot])
                 x: point.x - width / 2
                 y: point.y - (height - plateHeight / 2)
                 z: isHuman ? 2 : 1
@@ -341,7 +346,7 @@ Rectangle {
             objectName: "resultBanner"
             anchors.horizontalCenter: parent.horizontalCenter
             // Where the pot was: it has been paid out once the hand is over.
-            y: area.use3d ? area.at([0.5, 0.3]).y - height / 2 : board.y - height - area.unit * 0.12
+            y: area.use3d ? area.at([0.5, 0.385]).y - height : board.y - height - area.unit * 0.12
             visible: root.game.sessionActive && !root.game.handInProgress && root.game.handNumber > 0 && root.game.message !== ""
             width: Math.min(area.tableWidth * 0.7, Math.max(resultText.implicitWidth, dealHint.implicitWidth) + 40)
             height: bannerColumn.implicitHeight + 14

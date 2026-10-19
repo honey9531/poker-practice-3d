@@ -251,3 +251,58 @@ def test_switching_to_the_classic_table_while_playing(scene, qtbot):
     context.settings.setProperty("tableStyle", "3d")
     qtbot.waitUntil(lambda: table_3d(window) is not None, timeout=5000)
     assert context.qml_warnings == []
+
+
+# ------------------------------------------------------------ characters
+
+
+def character(table, slot):
+    return node(table, f"character3d_{slot}")
+
+
+def test_opponents_sit_at_the_table_as_characters(scene, qtbot):
+    context, window, table = scene
+    view = preview_table(6)
+    by_slot = {seat.slot: seat for seat in view.seats}
+    assert character(table, 0).property("character") == ""  # the human is the camera
+    assert not character(table, 0).property("visible")
+    for slot in range(1, 6):
+        player = character(table, slot)
+        assert player.property("character") == by_slot[slot].name
+        qtbot.waitUntil(lambda: player.property("ready"), timeout=5000)
+        assert player.property("visible") is (not by_slot[slot].busted)
+    assert context.qml_warnings == []
+
+
+def test_characters_rest_their_hands_on_the_rail_and_face_the_table(scene, qtbot):
+    context, window, table = scene
+    rail = table.property("railHeight") + 1
+    for slot in range(1, 6):
+        player = character(table, slot)
+        qtbot.waitUntil(lambda: player.property("ready"), timeout=5000)
+        for bone in ("Bip01 L Hand", "Bip01 R Hand"):
+            hand = player.findChild(QQuick3DObject, bone).property("scenePosition")
+            assert abs(hand.y() - rail) < 1.0, (slot, bone, hand)
+        # Hands are nearer the table's centre than the seat is.
+        seat = player.property("scenePosition")
+        hand = player.findChild(QQuick3DObject, "Bip01 L Hand").property("scenePosition")
+        assert hand.toVector2D().length() < QVector3D(seat.x(), 0, seat.z()).toVector2D().length() or \
+            abs(hand.z()) < abs(seat.z()) or abs(hand.x()) < abs(seat.x())
+
+
+def test_reposing_never_drifts(scene, qtbot):
+    context, window, table = scene
+    player = character(table, 2)
+    qtbot.waitUntil(lambda: player.property("ready"), timeout=5000)
+    player.setProperty("animated", False)
+    hand = player.findChild(QQuick3DObject, "Bip01 R Hand")
+    head = player.findChild(QQuick3DObject, "Bip01 Head")
+    lean, nod = player.property("lean"), player.property("nod")
+    before = (hand.property("scenePosition"), head.property("scenePosition"))
+    for i in range(40):
+        player.setProperty("lean", float((i * 7) % 15 - 5))
+        player.setProperty("nod", float((i * 5) % 20 - 8))
+    player.setProperty("lean", lean)
+    player.setProperty("nod", nod)
+    after = (hand.property("scenePosition"), head.property("scenePosition"))
+    assert (after[0] - before[0]).length() < 0.01 and (after[1] - before[1]).length() < 0.01
