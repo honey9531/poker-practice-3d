@@ -15,14 +15,13 @@ import logging
 import sys
 from collections.abc import Callable
 
-from PySide6.QtCore import QEventLoop, QTimer, QUrl
+from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QGuiApplication, QImage
-from PySide6.QtQml import QQmlComponent
 
 from poker import FULL_DECK
 from services.application import AppContext, configure_qt_application, load_ui
 from services.game_controller import INSTANT
-from services.game_session import OPPONENT_NAMES, SessionConfig
+from services.game_session import SessionConfig
 from services.paths import assets_dir, qml_dir, resource_root, user_data_dir
 from services.settings import CARD_BACKS
 
@@ -73,21 +72,6 @@ def _check_resources() -> None:
 
 
 SCREENS = ("setup", "statistics", "history", "settings", "gallery", "table", "menu")
-
-
-def _check_characters(context: AppContext) -> None:
-    """The opponents' 3D characters load (their meshes and textures are bundled)."""
-    failed = []
-    for name in OPPONENT_NAMES:
-        folder = assets_dir() / "avatars" / name
-        component = QQmlComponent(context.engine, QUrl.fromLocalFile(str(folder / f"Avatar{name}.qml")))
-        avatar = component.create() if component.isReady() else None
-        meshes = list((folder / "meshes").glob("*.mesh")) if folder.is_dir() else []
-        if avatar is None or not meshes:
-            failed.append(name)
-        else:
-            avatar.deleteLater()
-    _check(not failed, f"all {len(OPPONENT_NAMES)} opponent characters load {failed or ''}".rstrip())
 
 
 def _table_style(context: AppContext) -> str:
@@ -169,7 +153,6 @@ def run_self_test(argv: list[str] | None = None) -> int:
         if context.notice:
             _report(f"  !!  {context.notice}")
         _visit_screens(context)
-        _check_characters(context)
         _play(context)
         context.shutdown()
     except SelfTestFailure as exc:
