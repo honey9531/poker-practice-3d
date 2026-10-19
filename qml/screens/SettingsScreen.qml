@@ -75,6 +75,37 @@ ScreenScaffold {
                         value: Settings.tableStyle
                         onActivated: v => Settings.tableStyle = v
                     }
+                    Label2 { text: "Card back" }
+                    Row {
+                        objectName: "cardBackSelector"
+                        spacing: 10
+                        Repeater {
+                            model: Settings.cardBacks
+                            Rectangle {
+                                required property string modelData
+                                readonly property bool selected: Settings.cardBack === modelData
+                                objectName: "cardBack_" + modelData
+                                width: 46
+                                height: 64
+                                radius: 5
+                                color: "transparent"
+                                border.width: selected ? 3 : 1
+                                border.color: selected ? Theme.goldBright : Theme.panelBorder
+                                Image {
+                                    anchors.fill: parent
+                                    anchors.margins: 4
+                                    source: Qt.resolvedUrl("../../assets/cards/back_" + parent.modelData + ".svg")
+                                    sourceSize: Qt.size(width * 2, height * 2)
+                                    fillMode: Image.PreserveAspectFit
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Settings.cardBack = parent.modelData
+                                }
+                            }
+                        }
+                    }
                     Label2 { text: "Chip colours" }
                     SegmentedSelector {
                         objectName: "chipSchemeSelector"

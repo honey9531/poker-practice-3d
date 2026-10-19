@@ -12,7 +12,7 @@ from PySide6.QtQml import QmlNamedElement, QmlSingleton, QQmlEngine
 
 from bridge.registry import QML_IMPORT_MAJOR_VERSION, QML_IMPORT_NAME, singleton_instance
 from services.history import HistoryStore
-from services.settings import CHIP_SCHEMES, TABLE_STYLES, AppSettings
+from services.settings import CARD_BACKS, CHIP_SCHEMES, TABLE_STYLES, AppSettings
 
 __all__ = ["SettingsBridge", "QML_IMPORT_NAME", "QML_IMPORT_MAJOR_VERSION"]
 
@@ -109,6 +109,19 @@ class SettingsBridge(QObject):
             self._update(table_style=value)
 
     tableStyle = Property(str, _get_table_style, _set_table_style, notify=changed)
+
+    def _get_card_back(self) -> str:
+        return self._settings.card_back
+
+    def _set_card_back(self, value: str) -> None:
+        if value in CARD_BACKS:
+            self._update(card_back=value)
+
+    cardBack = Property(str, _get_card_back, _set_card_back, notify=changed)
+
+    @Property("QStringList", constant=True)
+    def cardBacks(self) -> list[str]:
+        return list(CARD_BACKS)
 
     @Property("QVariantMap", notify=changed)
     def sessionDefaults(self) -> dict:

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Window
+import PokerPractice.Bridge
 
 // A playing card. The card body always keeps poker proportions (63 x 88)
 // and is centred in whatever box the parent gives it.
@@ -96,7 +97,7 @@ Item {
             back: Image {
                 objectName: "cardBack"
                 anchors.fill: parent
-                source: Qt.resolvedUrl("../../assets/cards/back.svg")
+                source: Qt.resolvedUrl("../../assets/cards/back_" + Settings.cardBack + ".svg")
                 sourceSize: Qt.size(Math.ceil(width * Screen.devicePixelRatio), Math.ceil(height * Screen.devicePixelRatio))
                 smooth: true
             }

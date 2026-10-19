@@ -111,18 +111,27 @@ All chip amounts are `int`. `HoldemHand` verifies chip conservation when it dist
 ## Cards and chips (Phase 3)
 
 ### Playing cards: generated SVG assets
-`tools/generate_cards.py` writes `assets/cards/{2c..As}.svg` and `back.svg` (all original artwork).
+`tools/generate_cards.py` writes `assets/cards/{2c..As}.svg` and four backs,
+`back_{navy,crimson,ruby,emerald}.svg` (all original artwork, in an antique style).
 The generated files are committed so the app needs no build step;
 `tests/test_card_assets.py` fails if they drift from the generator.
 
-- Poker proportions 63 × 88 (viewBox 630 × 880); rounded corners, warm-white face gradient.
+- Poker proportions 63 × 88 (viewBox 630 × 880); rounded corners. Faces are aged parchment: a
+  warm radial gradient, darker worn edges and a few faint stains placed by a generator seeded with
+  the card's code (so output is deterministic), inside a thin gold frame with corner flourishes.
 - Rank indices are **stroke-drawn vector glyphs**, not font text, so cards render identically on
   every system and never depend on platform card/suit glyphs.
-- Standard pip layouts (lower-half pips inverted; the seven's extra pip is in the upper half),
-  ornamental ace of spades, double-ended court figures (J/Q/K differ in headwear and held item;
-  suits differ in robe colour and band pattern), symmetrical lattice-and-medallion back.
-- Only SVG Tiny 1.2 features that Qt SVG supports (no `<pattern>`/`<clipPath>`: the back's lattice
-  is clipped geometrically in Python).
+- Standard pip layouts (lower-half pips inverted; the seven's extra pip is in the upper half).
+  Pips are embossed: a top-left-lit gradient, a gold rim and a soft shadow.
+- Aces: a large embossed suit in a gold cartouche with scrolls and gems (the ace of spades adds a
+  gold star inlay). Double-ended court figures: J/Q/K differ in headwear, collar (the king's is
+  ermine), beard and held item; suits differ in robe colour — navy spades, crimson hearts, ruby
+  diamonds, emerald clubs — gems and band pattern.
+- Backs: dark lacquer in four colours with gold borders, corner scrolls, faint rays and a star
+  medallion. They carry no suit symbol (tested): every card in play uses the back chosen in
+  Settings, so a face-down card reveals nothing.
+- Only SVG Tiny 1.2 features that Qt SVG supports (no `<pattern>`/`<clipPath>`/filters: the
+  back's rays are cut to the border geometrically in Python, and shadows are offset copies).
 
 `qml/components/PlayingCard.qml` shows a card: the body always keeps 63:88 inside whatever box it
 gets, `sourceSize` follows the on-screen size × device pixel ratio (crisp on high-DPI), and it
@@ -324,7 +333,8 @@ showdowns), biggest pot won. Tests check the SQL aggregates against the pure-Pyt
 
 ### Settings
 `AppSettings` (validated; bad stored values fall back to defaults): animations, auto-deal,
-hand analysis, chip colour scheme (classic / vivid), and the last-used session options (which
+hand analysis, table style (3D / classic 2D), card back, chip colour scheme (classic / vivid),
+and the last-used session options (which
 pre-fill the setup screen). `Settings` bridge properties persist immediately and are applied to
 the chips bridge and the game controller through a subscription.
 

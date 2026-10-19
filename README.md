@@ -16,8 +16,9 @@ review your hands, statistics and replays.
   flip and lean up to be read, stacks of chips and dealer/blind pucks — with names, amounts and
   messages drawn crisply on top. The classic flat table is one click away in Settings, and is
   used automatically where 3D graphics are unavailable.
-- **Original vector artwork:** all 52 cards and the card back, plus casino chips, stacks and a
-  padded table with textured felt.
+- **Original vector artwork:** an antique-style deck — parchment faces, gold-rimmed pips, ornate
+  aces and court cards robed in their suit's colours — with four card backs to choose from, plus
+  casino chips, stacks and a padded table with textured felt.
 - **Animations:** dealing, card flips and chip movement.
 - **Computer opponents:** conservative, balanced and aggressive styles at easy, normal and hard
   difficulty, with an optional post-hand analysis of their reasoning.
@@ -78,8 +79,8 @@ python main.py --self-test     # verify resources and play automated hands, then
 3. When a hand is over, **click the table** (or press Space/Enter) to deal the next hand. You can
    also turn on *Deal next hand automatically* in Settings.
 4. **Statistics** and **Hand History** (with **Replay**) are on the main menu.
-5. **Settings** controls animations, auto-deal, hand analysis, the table (3D or classic 2D) and
-   chip colours, and lets you delete your history.
+5. **Settings** controls animations, auto-deal, hand analysis, the table (3D or classic 2D), the
+   card back and chip colours, and lets you delete your history.
 
 ### Where data is stored
 
@@ -142,7 +143,7 @@ The card artwork, the felt texture and the icon are generated, and the generated
 committed. The tests fail if they are stale.
 
 ```bash
-python tools/generate_cards.py      # assets/cards/*.svg
+python tools/generate_cards.py      # assets/cards/*.svg (52 faces, 4 backs)
 python tools/generate_textures.py   # assets/table/felt_noise.png
 python tools/generate_icon.py       # assets/icon/app.svg, app.png, app.ico
 ```

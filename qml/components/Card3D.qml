@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick3D
+import PokerPractice.Bridge
 
 // A playing card lying on the 3D table, its top edge pointing away from the
 // camera. An empty ``card`` always shows the back. The card flips over its
@@ -133,7 +134,7 @@ Node {
 
     Texture {
         id: cardBack
-        source: Qt.resolvedUrl("../../assets/cards/back.svg")
+        source: Qt.resolvedUrl("../../assets/cards/back_" + Settings.cardBack + ".svg")
         generateMipmaps: true
         mipFilter: Texture.Linear
     }

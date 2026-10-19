@@ -23,6 +23,7 @@ from services.application import AppContext, configure_qt_application, load_ui
 from services.game_controller import INSTANT
 from services.game_session import SessionConfig
 from services.paths import assets_dir, qml_dir, resource_root, user_data_dir
+from services.settings import CARD_BACKS
 
 log = logging.getLogger(__name__)
 
@@ -60,11 +61,12 @@ def _check(condition: bool, message: str) -> None:
 def _check_resources() -> None:
     _check((qml_dir() / "Main.qml").is_file(), f"QML found in {qml_dir()}")
     missing = []
-    for name in [f"{c.code}.svg" for c in FULL_DECK] + ["back.svg"]:
+    names = [f"{c.code}.svg" for c in FULL_DECK] + [f"back_{style}.svg" for style in CARD_BACKS]
+    for name in names:
         image = QImage(str(assets_dir() / "cards" / name))
         if image.isNull() or image.width() == 0:
             missing.append(name)
-    _check(not missing, f"all 53 card images render (SVG plugin) {missing[:3] if missing else ''}".rstrip())
+    _check(not missing, f"all {len(names)} card images render (SVG plugin) {missing[:3] if missing else ''}".rstrip())
     _check(not QImage(str(assets_dir() / "table" / "felt_noise.png")).isNull(), "table texture loads")
     _check(not QImage(str(assets_dir() / "icon" / "app.png")).isNull(), "application icon loads")
 

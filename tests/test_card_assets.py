@@ -8,12 +8,13 @@ from PySide6.QtSvg import QSvgRenderer
 
 from poker import FULL_DECK
 from services.paths import assets_dir
+from services.settings import CARD_BACKS, AppSettings
 
 sys.path.insert(0, str(assets_dir().parent / "tools"))
 import generate_cards  # noqa: E402
 
 CARDS_DIR = assets_dir() / "cards"
-EXPECTED = {f"{card.code}.svg" for card in FULL_DECK} | {"back.svg"}
+EXPECTED = {f"{card.code}.svg" for card in FULL_DECK} | {f"back_{style}.svg" for style in CARD_BACKS}
 
 
 def test_all_card_files_exist():
@@ -69,6 +70,32 @@ def test_seven_has_single_extra_pip_in_upper_half():
     centre = [(x, y) for x, y, _ in generate_cards.pip_positions("7") if x == generate_cards.PIP_COLUMNS["C"]]
     assert len(centre) == 1
     assert centre[0][1] < (generate_cards.PIP_TOP + generate_cards.PIP_BOTTOM) / 2
+
+
+def test_backs_match_the_setting_choices():
+    assert tuple(generate_cards.BACKS) == CARD_BACKS
+
+
+def test_backs_never_show_a_suit():
+    """Face-down cards must not give their suit away."""
+    for style in CARD_BACKS:
+        text = (CARDS_DIR / f"back_{style}.svg").read_text(encoding="utf-8")
+        assert not any(path in text for path in generate_cards.SUIT_PATHS.values()), style
+
+
+def test_every_card_shows_its_own_rank_and_suit_in_both_corners():
+    for card in FULL_DECK:
+        text = generate_cards.card_svg(card.code)
+        corner = generate_cards.indices(card.code[0], card.code[1])
+        assert corner in text
+        assert corner.count(generate_cards.SUIT_PATHS[card.code[1]]) == 2
+
+
+def test_card_back_setting_defaults_and_validation():
+    assert AppSettings().card_back in CARD_BACKS
+    assert AppSettings.from_mapping({"card_back": "emerald"}).card_back == "emerald"
+    assert AppSettings.from_mapping({"card_back": "plaid"}).card_back == AppSettings().card_back
+    assert AppSettings.from_mapping(AppSettings(card_back="ruby").to_mapping()).card_back == "ruby"
 
 
 def test_suit_colours():
