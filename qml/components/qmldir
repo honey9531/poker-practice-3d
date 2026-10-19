@@ -20,3 +20,7 @@ AnalysisPopup 1.0 AnalysisPopup.qml
 ReplayControls 1.0 ReplayControls.qml
 StatTile 1.0 StatTile.qml
 ErrorToast 1.0 ErrorToast.qml
+Card3D 1.0 Card3D.qml
+ChipPile3D 1.0 ChipPile3D.qml
+Puck3D 1.0 Puck3D.qml
+Table3D 1.0 Table3D.qml

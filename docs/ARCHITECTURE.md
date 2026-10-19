@@ -392,3 +392,60 @@ first) with the pot odds, adding a small margin per extra opponent, and calls, r
 Measured over 80 seeded sessions against three opponents, always shoving went from +425 chips per
 session on average to −583 (bust in 65 of 80 sessions). A first-hand shove is still usually folded
 to, which is correct against an unknown player, but it only wins the blinds.
+
+## 3D table
+
+The table screen shows a Qt Quick 3D scene (`qml/components/Table3D.qml`) when the window renders
+with a 3D graphics API, and the 2D table otherwise. Only the table surface, cards, chips and pucks
+are 3D; nameplates, amounts, the result banner and every control stay 2D on top, so text is always
+sharp and the existing QML components (`PlayerSeat`, `BetDisplay`, `PotDisplay`) are reused with
+their cards/chips switched off (`showCards`, `showChips`).
+
+### Choosing the table
+`TableScreen` loads `Table3D` in a `Loader` when `Settings.tableStyle` is `"3d"` (the default) and
+`GraphicsInfo.api` is OpenGL, Direct3D 11/12, Vulkan or Metal. Qt Quick's software renderer — used
+headless (`QT_QPA_PLATFORM=offscreen`) and as Qt's last resort — cannot draw 3D, so the 2D table
+appears there; this is also why the headless test suite exercises the 2D table.
+
+A GPU-less machine can still have a 3D API implemented on the CPU (Mesa llvmpipe in virtual
+machines and remote desktops, Windows' Basic Render Driver). `AppBridge.watch_renderer()` reads the
+device from the window's `QRhi` when the scene graph starts, logs it (`Graphics: …`), and sets
+`App.softwareRendering`. `Table3D.lowPower` then turns off shadows, ambient occlusion and
+multisampling: measured on an 8-core llvmpipe, the scene went from under 2 to about 24 frames per
+second at 1280×800. Idle tables cost nothing either way, since the scene is only redrawn when
+something moves.
+
+### Scene
+- **Coordinates:** one unit ≈ 1 cm; the felt is the `y = 0` plane, `+z` points at the human.
+  Positions are given as the same `[u, v]` fractions of the table's outer rectangle that the 2D
+  table uses, and `Table3D.world()` converts them.
+- **Meshes:** `services/table_mesh.py` (pure Python, unit-tested) builds the felt as a flat
+  stadium and the trim, padded rail, apron and betting line by sweeping a 2D profile around the
+  stadium outline. `bridge/table_geometry.py` wraps each part as a `QQuick3DGeometry`
+  (`TableGeometry` in QML) and publishes the dimensions so QML lays content out on the same surface.
+- **Cards** (`Card3D`) are two textured rectangles back to back with the card SVGs as textures
+  (mipmapped; corners cut out with an alpha mask). They flip about their long axis, lift while
+  turning, slide in when dealt, and lean towards the camera: always for the human's cards, and
+  for an opponent's once shown. Winning cards get a gold rim.
+- **Chips** (`ChipPile3D`) use the same `Chips.breakdown()` as the 2D piles: one cylinder per chip
+  with a striped edge texture and, on top of each stack, a face drawn by the 2D `PokerChip`
+  rendered into a texture. `Puck3D` reuses `PositionMarker` the same way.
+- **Motion** mirrors the 2D table: hole cards are dealt from the centre (only right after a new
+  hand starts), board cards slide in face down and flip, new bets slide out from the player, bets
+  fly to the pot when a street closes and pots fly to the winners — all driven by state changes.
+
+### Camera and overlays
+The camera looks down at a fixed 54° with a 34° field of view. `Table3D.fitCamera()` chooses the
+closest distance at which the whole table and every nameplate fit, and moves the aim along `z` so
+the space above and below is balanced. Because the camera is known exactly, `Table3D.project()`
+computes screen positions with the same perspective maths as `PerspectiveCamera`, as ordinary QML
+bindings: overlays follow resizes without querying the renderer. `TableScreen` places everything
+through `area.at([u, v])`, which uses this projection on the 3D table and the old rectangle
+mapping on the 2D one. A test compares `project()` with `View3D.mapFrom3DScene()` (within a
+pixel) wherever 3D can be rendered.
+
+### Packaging
+`bundle_filter.py` keeps the `QtQuick3D` QML module without its submodules, and the
+`Quick3D`, `Quick3DRuntimeRender`, `Quick3DUtils` and `ShaderTools` libraries (Qt Quick 3D
+generates its shaders at run time); helpers, effects, particles, physics, XR and asset import stay
+out. The self-test reports which table the packaged build shows.

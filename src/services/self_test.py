@@ -71,6 +71,23 @@ def _check_resources() -> None:
 SCREENS = ("setup", "statistics", "history", "settings", "gallery", "table", "menu")
 
 
+def _table_style(context: AppContext) -> str:
+    """Which table the table screen shows (informational: 2D is a valid fallback)."""
+
+    def items(item):
+        for child in item.childItems():
+            yield child
+            yield from items(child)
+
+    window = context.engine.rootObjects()[0]
+    loader = next((i for i in items(window.contentItem()) if i.objectName() == "table3dLoader"), None)
+    if loader is None or loader.property("item") is None:
+        return "2D (3D graphics not available)"
+    if context.app_bridge.property("softwareRendering"):
+        return "3D, reduced detail (software rendering)"
+    return "3D"
+
+
 def _visit_screens(context: AppContext) -> None:
     """Open every screen so all QML modules and components must load."""
     window = context.engine.rootObjects()[0]
@@ -81,6 +98,8 @@ def _visit_screens(context: AppContext) -> None:
         loop.exec()
         if window.property("currentScreen") != name:
             raise SelfTestFailure(f"Could not open the {name} screen")
+        if name == "table":
+            _report(f"  ..  table: {_table_style(context)}")
     _check(not context.qml_warnings, f"all screens open without QML errors {context.qml_warnings[:2] or ''}".rstrip())
 
 

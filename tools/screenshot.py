@@ -42,6 +42,10 @@ def main() -> int:
         "--preview", choices=["none", "hand", "showdown", "headsup"], default="hand",
         help="sample table state to display (no engine involved)",
     )
+    parser.add_argument(
+        "--wait", type=int, default=1000,
+        help="milliseconds to let transitions and animations finish (software-rendered 3D needs more)",
+    )
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -60,7 +64,7 @@ def main() -> int:
         window.resize(width, height)
         for screen in args.screens.split(","):
             window.showScreen(screen)
-            wait(1000)  # let screen transitions and card animations finish
+            wait(args.wait)  # let screen transitions and card animations finish
             image = window.grabWindow()
             suffix = f"_{args.preview}" if screen == "table" and args.preview != "none" else ""
             path = args.output_dir / f"{screen}{suffix}_{width}x{height}.png"

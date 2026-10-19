@@ -68,6 +68,13 @@ ScreenScaffold {
                     columnSpacing: Theme.spacingLarge
                     rowSpacing: Theme.spacing + 4
 
+                    Label2 { text: "Table" }
+                    SegmentedSelector {
+                        objectName: "tableStyleSelector"
+                        options: [{ label: "3D", value: "3d" }, { label: "Classic 2D", value: "2d" }]
+                        value: Settings.tableStyle
+                        onActivated: v => Settings.tableStyle = v
+                    }
                     Label2 { text: "Chip colours" }
                     SegmentedSelector {
                         objectName: "chipSchemeSelector"

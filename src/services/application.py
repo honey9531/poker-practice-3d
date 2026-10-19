@@ -148,6 +148,7 @@ def load_ui(app: QGuiApplication, db_path: Path | None = None) -> AppContext:
         details = "\n".join(context.qml_warnings) or "no diagnostics"
         raise QmlLoadError(f"Failed to load {main_qml}:\n{details}")
     log.info("Loaded %s", main_qml)
+    context.app_bridge.watch_renderer(engine.rootObjects()[0])
     return context
 
 

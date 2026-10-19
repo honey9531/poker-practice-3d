@@ -7,11 +7,12 @@ Item {
     property int amount: 0
     property real chipWidth: 28
     property bool animated: true
+    property bool showChips: true  // false: amount only (the 3D table draws the chips)
 
     readonly property alias pile: chips
 
-    width: Math.max(chips.width, label.width)
-    height: chips.height + label.height + 2
+    width: Math.max(showChips ? chips.width : 0, label.width)
+    height: (showChips ? chips.height + 2 : 0) + label.height
     visible: amount > 0
 
     ChipPile {
@@ -22,13 +23,14 @@ Item {
         maxPerStack: 8
         maxStacks: 4
         animated: root.animated
+        visible: root.showChips
     }
 
     Rectangle {
         id: label
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: chips.bottom
-        anchors.topMargin: 2
+        anchors.top: root.showChips ? chips.bottom : parent.top
+        anchors.topMargin: root.showChips ? 2 : 0
         width: text.implicitWidth + 12
         height: text.implicitHeight + 2
         radius: height / 2

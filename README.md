@@ -12,6 +12,10 @@ review your hands, statistics and replays.
   - blinds (including short and all-in blinds), heads-up rules and a moving dealer button
   - minimum-raise rules, including incomplete all-in raises that don't reopen betting
   - side pots, split pots with odd-chip handling, uncalled bets, and all-in run-outs with hands shown
+- **3D table:** a lit 3D scene seen from your seat — padded rail, felt, cards that are dealt,
+  flip and lean up to be read, stacks of chips and dealer/blind pucks — with names, amounts and
+  messages drawn crisply on top. The classic flat table is one click away in Settings, and is
+  used automatically where 3D graphics are unavailable.
 - **Original vector artwork:** all 52 cards and the card back, plus casino chips, stacks and a
   padded table with textured felt.
 - **Animations:** dealing, card flips and chip movement.
@@ -28,6 +32,9 @@ review your hands, statistics and replays.
 - Windows 10/11 (target platform); also runs on Linux and macOS from source
 - Python 3.12+
 - PySide6 6.12 (installed from `requirements.txt`)
+- For the 3D table: a graphics driver with Direct3D 11/12, Vulkan, Metal or OpenGL 3.3. Without a
+  GPU (virtual machines, remote desktops) the 3D table still runs with shadows and smoothing turned
+  off; otherwise choose the classic table in Settings.
 
 ## Setup
 
@@ -71,8 +78,8 @@ python main.py --self-test     # verify resources and play automated hands, then
 3. When a hand is over, **click the table** (or press Space/Enter) to deal the next hand. You can
    also turn on *Deal next hand automatically* in Settings.
 4. **Statistics** and **Hand History** (with **Replay**) are on the main menu.
-5. **Settings** controls animations, auto-deal, hand analysis and chip colours, and lets you
-   delete your history.
+5. **Settings** controls animations, auto-deal, hand analysis, the table (3D or classic 2D) and
+   chip colours, and lets you delete your history.
 
 ### Where data is stored
 
@@ -102,6 +109,15 @@ The suite runs headless (`QT_QPA_PLATFORM=offscreen` is set in `tests/conftest.p
 - **Interface:** QML components and screens.
 - **Data and packaging:** persistence and restarts, replay, the bundle filter, and the
   self-test.
+- **3D table:** the table meshes, the camera and projection, and the table style setting.
+
+Headless runs use Qt Quick's software renderer, which cannot draw 3D, so the table screen tests
+cover the 2D table and the tests of the live 3D scene in `tests/test_table_3d.py` are skipped.
+Run them on a display, or under Xvfb:
+
+```bash
+xvfb-run -a env QT_QPA_PLATFORM=xcb python -m pytest tests/test_table_3d.py
+```
 
 ### QA tools
 
@@ -109,6 +125,10 @@ The suite runs headless (`QT_QPA_PLATFORM=offscreen` is set in `tests/conftest.p
 python tools/screenshot.py out --sizes 1024x640,1920x1080 --screens menu,table --preview hand
 python tools/walkthrough.py out --hands 8     # plays through the real UI, then history and replay
 ```
+
+Both render offscreen, so they show the 2D table. For the 3D table, run them on a display or
+under Xvfb (`xvfb-run -a env QT_QPA_PLATFORM=xcb python tools/screenshot.py … --wait 5000`; the
+longer wait lets software-rendered 3D finish its animations).
 
 - **`screenshot.py`** renders screens offscreen at the given window sizes.
 - **`walkthrough.py`** clicks the same buttons a player would, saves screenshots, and fails on
@@ -157,14 +177,17 @@ On Linux, `packaging/build_linux.sh` builds and verifies `dist/PokerPractice/Pok
 
 - **Linux:** the PyInstaller build was built and tested. Its self-test passed:
   - when copied away from the source tree
-  - offscreen and on a real X11 display
+  - offscreen (2D table) and on an X11 display with the 3D table (software-rendered OpenGL)
   - twice in a row, with history persisting between runs
 - **Windows:** the Windows executable has **not** been built or run yet, because development so
   far used a Linux machine without Windows. The spec, the build script and the CI workflow are
   ready, and the CI workflow (or the build script on Windows) is the next verification step.
-- **Size:** the bundle is about 200 MB on Linux after removing unused Qt modules (see
-  `packaging/bundle_filter.py`). Windows builds are usually smaller because system libraries
-  are not bundled.
+- **Size:** the bundle is about 217 MB on Linux after removing unused Qt modules (see
+  `packaging/bundle_filter.py`); the Qt Quick 3D runtime accounts for about 13 MB of it. Windows
+  builds are usually smaller because system libraries are not bundled.
+- **3D on a GPU:** the 3D table has only been run with software rendering (Mesa llvmpipe) so far;
+  its full-detail mode (shadows, ambient occlusion, multisampling) still needs a look on real
+  graphics hardware.
 
 ## Project layout
 
@@ -172,10 +195,11 @@ On Linux, `packaging/build_linux.sh` builds and verifies `dist/PokerPractice/Pok
 main.py              entry point (--self-test for build verification)
 src/poker/           rules engine: cards, deck, evaluator, betting, pots, hand, table (no Qt)
 src/ai/              computer opponents: hand strength, heuristic strategies
-src/services/        bootstrap, session/controller, presenter, persistence, statistics, settings
+src/services/        bootstrap, session/controller, presenter, persistence, statistics, settings,
+                     3D table meshes
 src/bridge/          QObjects and models exposed to QML (import PokerPractice.Bridge)
 qml/Main.qml         application window and navigation
-qml/components/      theme, cards, chips, table, seats, controls, dialogs
+qml/components/      theme, cards, chips, table (2D and 3D), seats, controls, dialogs
 qml/screens/         menu, setup, table/replay, statistics, history, settings, gallery
 assets/              generated card SVGs, felt texture, icon
 packaging/           PyInstaller spec, bundle filter, build scripts
@@ -210,3 +234,7 @@ implemented, and the definitions of each statistic.
   not use. The build still succeeds.
 - **Linux: `Could not load the Qt platform plugin "xcb"`:** install the system package
   `libxcb-cursor0`.
+- **The 3D table is slow or does not appear:** the log names the graphics device at startup
+  (`Graphics: …`). Software renderers (llvmpipe, Microsoft Basic Render Driver) get a lighter 3D
+  table; on very slow machines choose Settings → *Table* → *Classic 2D*. If the window uses Qt's
+  software renderer the classic table is shown automatically.
