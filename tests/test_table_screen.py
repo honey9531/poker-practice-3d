@@ -112,6 +112,15 @@ def test_controls_disabled_when_not_human_turn(ui, qtbot):
         assert not find(window, name).isEnabled()
 
 
+def test_result_banner_replaces_the_pot_label(ui, qtbot):
+    window = show_table(ui, qtbot, preview_table(6, showdown=True))
+    assert find(window, "resultBanner").isVisible()
+    assert not find(window, "potDisplay").isVisible()
+    window = show_table(ui, qtbot, preview_table(6))
+    assert not find(window, "resultBanner").isVisible()
+    assert find(window, "potDisplay").isVisible()
+
+
 @pytest.mark.parametrize("size", [(1024, 640), (1280, 800), (1920, 1080)])
 def test_seats_stay_inside_the_window(ui, qtbot, size):
     window = show_table(ui, qtbot, preview_table(6))

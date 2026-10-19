@@ -118,6 +118,60 @@ def test_corrupted_file_is_moved_aside_and_replaced(tmp_path):
     db.close()
 
 
+def test_locked_database_is_left_alone(tmp_path, monkeypatch):
+    """A second instance must not mistake another one's lock for corruption."""
+    path = tmp_path / "busy.db"
+    first = Database(path)
+    HistoryStore(first).save_settings({"keep": True})
+    first.conn.execute("BEGIN EXCLUSIVE")
+    monkeypatch.setattr(Database, "BUSY_TIMEOUT", 0.05)
+    with pytest.raises(sqlite3.OperationalError):
+        Database(path)
+    assert list(tmp_path.glob("*.corrupt-*")) == []
+    first.conn.rollback()
+    assert HistoryStore(first).load_settings() == {"keep": True}
+    first.close()
+
+
+def test_unusable_database_falls_back_to_memory_with_a_notice(tmp_path, monkeypatch):
+    from services.application import open_database
+
+    path = tmp_path / "busy.db"
+    first = Database(path)
+    first.conn.execute("BEGIN EXCLUSIVE")
+    monkeypatch.setattr(Database, "BUSY_TIMEOUT", 0.05)
+    db, notice = open_database(path)
+    assert "cannot be saved" in notice and db.recovered_from is None
+    assert path.exists() and list(tmp_path.glob("*.corrupt-*")) == []
+    db.close()
+    first.conn.rollback()
+    first.close()
+
+
+def test_no_stale_journal_files_stay_with_the_new_database(tmp_path):
+    path = tmp_path / "broken.db"
+    path.write_bytes(b"not a database" * 100)
+    for suffix in ("-journal", "-wal", "-shm"):
+        (tmp_path / f"broken.db{suffix}").write_bytes(b"stale" * 20)
+    db = Database(path)
+    # SQLite discards some of them itself; the rest move aside with the corrupt file.
+    for suffix in ("-journal", "-wal", "-shm"):
+        leftover = tmp_path / f"broken.db{suffix}"
+        assert not leftover.exists() or b"stale" not in leftover.read_bytes()
+    assert db.schema_version == SCHEMA_VERSION
+    db.close()
+
+
+def test_journal_files_sqlite_leaves_behind_move_with_the_corrupt_file(tmp_path):
+    path = tmp_path / "broken.db"
+    path.write_bytes(b"not a database" * 100)
+    (tmp_path / "broken.db-shm").write_bytes(b"stale" * 20)  # SQLite leaves a lone -shm alone
+    db = Database(path)
+    assert not (tmp_path / "broken.db-shm").exists()
+    assert (tmp_path / (db.recovered_from.name + "-shm")).read_bytes() == b"stale" * 20
+    db.close()
+
+
 def test_newer_schema_is_refused(tmp_path):
     path = tmp_path / "future.db"
     conn = sqlite3.connect(path)

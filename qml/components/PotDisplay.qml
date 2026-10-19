@@ -8,6 +8,7 @@ Column {
     property int totalPot: 0
     property real chipWidth: 30
     property bool animated: true
+    property bool showChips: true  // false: amounts only (the 3D table draws the chips)
 
     readonly property int collected: pots.reduce((sum, p) => sum + p.amount, 0)
 
@@ -22,7 +23,7 @@ Column {
         maxPerStack: 10
         maxStacks: 6
         animated: root.animated
-        visible: root.collected > 0
+        visible: root.showChips && root.collected > 0
     }
 
     Rectangle {

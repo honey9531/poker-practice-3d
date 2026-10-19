@@ -23,6 +23,8 @@ Item {
     property var bestCards: []
     property string playerStyle: ""
     property bool animated: true
+    // false: nameplate only (the 3D table draws the cards on the felt).
+    property bool showCards: true
     // Deal animation: only right after a new hand starts.
     property bool animateDeal: false
     property point dealOrigin: Qt.point(0, 0)  // table centre in this item's coordinates
@@ -35,7 +37,7 @@ Item {
     readonly property real cardsExposed: isHuman ? 0.84 : 0.62
 
     width: plateWidth
-    height: plate.height + cardsRow.height * cardsExposed
+    height: plate.height + (showCards ? cardsRow.height * cardsExposed : 0)
     opacity: busted ? 0.35 : (folded ? 0.6 : 1)
     Behavior on opacity { enabled: root.animated; NumberAnimation { duration: Theme.durationNormal } }
 
@@ -46,7 +48,7 @@ Item {
         width: root.cardWidth * 1.7
         height: root.cardWidth * 88 / 63
         y: 0
-        visible: root.cards.length > 0
+        visible: root.showCards && root.cards.length > 0
         // Fixed two positions: delegates live as long as the seat, so revealing
         // cards flips them in place instead of recreating (and re-dealing) them.
         Repeater {

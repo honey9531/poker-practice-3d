@@ -111,18 +111,27 @@ All chip amounts are `int`. `HoldemHand` verifies chip conservation when it dist
 ## Cards and chips (Phase 3)
 
 ### Playing cards: generated SVG assets
-`tools/generate_cards.py` writes `assets/cards/{2c..As}.svg` and `back.svg` (all original artwork).
+`tools/generate_cards.py` writes `assets/cards/{2c..As}.svg` and four backs,
+`back_{navy,crimson,ruby,emerald}.svg` (all original artwork, in an antique style).
 The generated files are committed so the app needs no build step;
 `tests/test_card_assets.py` fails if they drift from the generator.
 
-- Poker proportions 63 × 88 (viewBox 630 × 880); rounded corners, warm-white face gradient.
+- Poker proportions 63 × 88 (viewBox 630 × 880); rounded corners. Faces are aged parchment: a
+  warm radial gradient, darker worn edges and a few faint stains placed by a generator seeded with
+  the card's code (so output is deterministic), inside a thin gold frame with corner flourishes.
 - Rank indices are **stroke-drawn vector glyphs**, not font text, so cards render identically on
   every system and never depend on platform card/suit glyphs.
-- Standard pip layouts (lower-half pips inverted; the seven's extra pip is in the upper half),
-  ornamental ace of spades, double-ended court figures (J/Q/K differ in headwear and held item;
-  suits differ in robe colour and band pattern), symmetrical lattice-and-medallion back.
-- Only SVG Tiny 1.2 features that Qt SVG supports (no `<pattern>`/`<clipPath>`: the back's lattice
-  is clipped geometrically in Python).
+- Standard pip layouts (lower-half pips inverted; the seven's extra pip is in the upper half).
+  Pips are embossed: a top-left-lit gradient, a gold rim and a soft shadow.
+- Aces: a large embossed suit in a gold cartouche with scrolls and gems (the ace of spades adds a
+  gold star inlay). Double-ended court figures: J/Q/K differ in headwear, collar (the king's is
+  ermine), beard and held item; suits differ in robe colour — navy spades, crimson hearts, ruby
+  diamonds, emerald clubs — gems and band pattern.
+- Backs: dark lacquer in four colours with gold borders, corner scrolls, faint rays and a star
+  medallion. They carry no suit symbol (tested): every card in play uses the back chosen in
+  Settings, so a face-down card reveals nothing.
+- Only SVG Tiny 1.2 features that Qt SVG supports (no `<pattern>`/`<clipPath>`/filters: the
+  back's rays are cut to the border geometrically in Python, and shadows are offset copies).
 
 `qml/components/PlayingCard.qml` shows a card: the body always keeps 63:88 inside whatever box it
 gets, `sourceSize` follows the on-screen size × device pixel ratio (crisp on high-DPI), and it
@@ -282,9 +291,11 @@ Windows). `services/database.py`:
 - **Migrations:** ordered statement lists; `PRAGMA user_version` records the applied schema;
   each migration runs in one transaction. A database from a newer version is refused rather
   than modified.
-- **Corruption:** at open, `PRAGMA quick_check` runs; an unreadable file is renamed to
-  `poker_practice.corrupt-<timestamp>.db` and a fresh database is created. The main menu shows a
-  notice. If the location is unusable, the app runs with an in-memory database and says so.
+- **Corruption:** at open, `PRAGMA quick_check` runs. Only a damaged file (a failed check, or
+  SQLite reporting `CORRUPT`/`NOTADB`) is renamed to `poker_practice.corrupt-<timestamp>.db`,
+  together with any journal files, and a fresh database is created; the main menu shows a notice.
+  Anything else — another instance holding a lock, permissions, I/O errors — leaves the file
+  untouched, and the app runs with an in-memory database for that session and says so.
 - Every write uses `Database.transaction()` (commit or roll back).
 
 Schema v1: `sessions`, `hands` (summary columns + versioned JSON event log), `hand_players`
@@ -322,7 +333,8 @@ showdowns), biggest pot won. Tests check the SQL aggregates against the pure-Pyt
 
 ### Settings
 `AppSettings` (validated; bad stored values fall back to defaults): animations, auto-deal,
-hand analysis, chip colour scheme (classic / vivid), and the last-used session options (which
+hand analysis, table style (3D / classic 2D), card back, chip colour scheme (classic / vivid),
+and the last-used session options (which
 pre-fill the setup screen). `Settings` bridge properties persist immediately and are applied to
 the chips bridge and the game controller through a subscription.
 
@@ -392,3 +404,60 @@ first) with the pot odds, adding a small margin per extra opponent, and calls, r
 Measured over 80 seeded sessions against three opponents, always shoving went from +425 chips per
 session on average to −583 (bust in 65 of 80 sessions). A first-hand shove is still usually folded
 to, which is correct against an unknown player, but it only wins the blinds.
+
+## 3D table
+
+The table screen shows a Qt Quick 3D scene (`qml/components/Table3D.qml`) when the window renders
+with a 3D graphics API, and the 2D table otherwise. Only the table surface, cards, chips and pucks
+are 3D; nameplates, amounts, the result banner and every control stay 2D on top, so text is always
+sharp and the existing QML components (`PlayerSeat`, `BetDisplay`, `PotDisplay`) are reused with
+their cards/chips switched off (`showCards`, `showChips`).
+
+### Choosing the table
+`TableScreen` loads `Table3D` in a `Loader` when `Settings.tableStyle` is `"3d"` (the default) and
+`GraphicsInfo.api` is OpenGL, Direct3D 11/12, Vulkan or Metal. Qt Quick's software renderer — used
+headless (`QT_QPA_PLATFORM=offscreen`) and as Qt's last resort — cannot draw 3D, so the 2D table
+appears there; this is also why the headless test suite exercises the 2D table.
+
+A GPU-less machine can still have a 3D API implemented on the CPU (Mesa llvmpipe in virtual
+machines and remote desktops, Windows' Basic Render Driver). `AppBridge.watch_renderer()` reads the
+device from the window's `QRhi` when the scene graph starts, logs it (`Graphics: …`), and sets
+`App.softwareRendering`. `Table3D.lowPower` then turns off shadows, ambient occlusion and
+multisampling: measured on an 8-core llvmpipe, the scene went from under 2 to about 24 frames per
+second at 1280×800. Idle tables cost nothing either way, since the scene is only redrawn when
+something moves.
+
+### Scene
+- **Coordinates:** one unit ≈ 1 cm; the felt is the `y = 0` plane, `+z` points at the human.
+  Positions are given as the same `[u, v]` fractions of the table's outer rectangle that the 2D
+  table uses, and `Table3D.world()` converts them.
+- **Meshes:** `services/table_mesh.py` (pure Python, unit-tested) builds the felt as a flat
+  stadium and the trim, padded rail, apron and betting line by sweeping a 2D profile around the
+  stadium outline. `bridge/table_geometry.py` wraps each part as a `QQuick3DGeometry`
+  (`TableGeometry` in QML) and publishes the dimensions so QML lays content out on the same surface.
+- **Cards** (`Card3D`) are two textured rectangles back to back with the card SVGs as textures
+  (mipmapped; corners cut out with an alpha mask). They flip about their long axis, lift while
+  turning, slide in when dealt, and lean towards the camera: always for the human's cards, and
+  for an opponent's once shown. Winning cards get a gold rim.
+- **Chips** (`ChipPile3D`) use the same `Chips.breakdown()` as the 2D piles: one cylinder per chip
+  with a striped edge texture and, on top of each stack, a face drawn by the 2D `PokerChip`
+  rendered into a texture. `Puck3D` reuses `PositionMarker` the same way.
+- **Motion** mirrors the 2D table: hole cards are dealt from the centre (only right after a new
+  hand starts), board cards slide in face down and flip, new bets slide out from the player, bets
+  fly to the pot when a street closes and pots fly to the winners — all driven by state changes.
+
+### Camera and overlays
+The camera looks down at a fixed 54° with a 34° field of view. `Table3D.fitCamera()` chooses the
+closest distance at which the whole table and every nameplate fit, and moves the aim along `z` so
+the space above and below is balanced. Because the camera is known exactly, `Table3D.project()`
+computes screen positions with the same perspective maths as `PerspectiveCamera`, as ordinary QML
+bindings: overlays follow resizes without querying the renderer. `TableScreen` places everything
+through `area.at([u, v])`, which uses this projection on the 3D table and the old rectangle
+mapping on the 2D one. A test compares `project()` with `View3D.mapFrom3DScene()` (within a
+pixel) wherever 3D can be rendered.
+
+### Packaging
+`bundle_filter.py` keeps the `QtQuick3D` QML module without its submodules, and the
+`Quick3D`, `Quick3DRuntimeRender`, `Quick3DUtils` and `ShaderTools` libraries (Qt Quick 3D
+generates its shaders at run time); helpers, effects, particles, physics, XR and asset import stay
+out. The self-test reports which table the packaged build shows.

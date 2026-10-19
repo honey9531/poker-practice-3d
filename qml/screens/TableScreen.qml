@@ -119,22 +119,35 @@ Rectangle {
         readonly property real tableX: (width - tableWidth) / 2
         readonly property real tableY: (height - tableHeight) / 2 - height * 0.01
         // Size unit for seats, cards and chips.
-        readonly property real unit: Math.max(52, Math.min(160, tableWidth / 12))
+        readonly property real unit: table3d.item ? table3d.item.unit : Math.max(52, Math.min(160, tableWidth / 12))
+
+        // The 3D table needs a 3D graphics API: with Qt Quick's software
+        // renderer (headless runs) the 2D table is shown, as it is when the
+        // player chooses the classic table in Settings.
+        readonly property bool use3d: table3d.item !== null
 
         // Positions relative to the table rectangle, indexed by display slot
         // (0 = human at the bottom, then clockwise).
         readonly property var seatPoints: [[0.5, 1.04], [0.1, 0.82], [0.1, 0.22], [0.5, 0.03], [0.9, 0.22], [0.9, 0.82]]
-        readonly property var betPoints: [[0.5, 0.69], [0.25, 0.68], [0.25, 0.32], [0.62, 0.21], [0.75, 0.32], [0.75, 0.68]]
-        readonly property var markerPoints: [[0.39, 0.71], [0.18, 0.6], [0.18, 0.4], [0.39, 0.19], [0.82, 0.4], [0.82, 0.6]]
+        // The 3D table keeps hole cards on the felt, so its bets and markers sit further in.
+        readonly property var betPoints: use3d
+            ? [[0.39, 0.64], [0.3, 0.62], [0.32, 0.4], [0.58, 0.25], [0.68, 0.4], [0.7, 0.62]]
+            : [[0.5, 0.69], [0.25, 0.68], [0.25, 0.32], [0.62, 0.21], [0.75, 0.32], [0.75, 0.68]]
+        readonly property var markerPoints: use3d
+            ? [[0.62, 0.66], [0.27, 0.53], [0.3, 0.3], [0.67, 0.21], [0.7, 0.3], [0.73, 0.53]]
+            : [[0.39, 0.71], [0.18, 0.6], [0.18, 0.4], [0.39, 0.19], [0.82, 0.4], [0.82, 0.6]]
 
         function px(point) { return tableX + point[0] * tableWidth }
         function py(point) { return tableY + point[1] * tableHeight }
+        // A table position on screen, on whichever table is shown.
+        // (Reads the loader's item directly: it can go away before ``use3d`` is updated.)
+        function at(point) { return table3d.item ? table3d.item.pointAt(point) : Qt.point(px(point), py(point)) }
         readonly property point potPoint: Qt.point(px([0.5, 0]), py([0, 0.33]))
         readonly property point centre: Qt.point(px([0.5, 0]), py([0, 0.5]))
 
         // Chips travelling across the felt (bets to the pot, pots to winners).
         function flyChips(amount, from, to) {
-            if (!root.animated || amount <= 0)
+            if (!root.animated || amount <= 0 || use3d)  // the 3D table flies its own chips
                 return
             flyingChips.createObject(area, { amount: amount, startPoint: from, endPoint: to })
         }
@@ -174,9 +187,28 @@ Rectangle {
             onClicked: root.dealRequested()
         }
 
+        Loader {
+            id: table3d
+            objectName: "table3dLoader"
+            anchors.fill: parent
+            active: Settings.tableStyle === "3d"
+                    && [GraphicsInfo.OpenGL, GraphicsInfo.Direct3D11, GraphicsInfo.Direct3D12,
+                        GraphicsInfo.Vulkan, GraphicsInfo.Metal].indexOf(GraphicsInfo.api) >= 0
+            sourceComponent: Table3D {
+                game: root.game
+                animated: root.animated
+                dealing: root.dealing
+                lowPower: App.softwareRendering
+                seatPoints: area.seatPoints
+                betPoints: area.betPoints
+                markerPoints: area.markerPoints
+            }
+        }
+
         PokerTable {
             id: table
             objectName: "pokerTable"
+            visible: !area.use3d
             x: area.tableX
             y: area.tableY
             width: area.tableWidth
@@ -186,7 +218,11 @@ Rectangle {
         PotDisplay {
             objectName: "potDisplay"
             anchors.horizontalCenter: parent.horizontalCenter
-            y: area.py([0, 0.38]) - height
+            // In 3D the pot's chips are on the felt and only the amounts are shown, just below them.
+            y: area.use3d ? area.at([0.5, 0.3]).y : area.py([0, 0.38]) - height
+            showChips: !area.use3d
+            // The result banner takes the pot's place once the hand is over.
+            visible: !resultBanner.visible
             pots: root.game.pots
             totalPot: root.game.totalPot
             chipWidth: area.unit * 0.36
@@ -198,7 +234,8 @@ Rectangle {
             objectName: "boardCards"
             cardWidth: area.unit * 0.86
             anchors.horizontalCenter: parent.horizontalCenter
-            y: area.py([0, 0.5]) - height / 2
+            y: area.at([0.5, area.use3d ? 0.53 : 0.5]).y - height / 2
+            visible: !area.use3d
             cards: root.game.board
             highlightCards: root.game.winningCards
             animated: root.animated
@@ -219,16 +256,16 @@ Rectangle {
                 BetDisplay {
                     id: betDisplay
                     objectName: "bet" + furniture.slot
-                    readonly property point point: Qt.point(area.px(area.betPoints[furniture.slot]),
-                                                            area.py(area.betPoints[furniture.slot]))
-                    readonly property point seatPoint: Qt.point(area.px(area.seatPoints[furniture.slot]),
-                                                                area.py(area.seatPoints[furniture.slot]))
+                    readonly property point point: area.at(area.betPoints[furniture.slot])
+                    readonly property point seatPoint: area.at(area.seatPoints[furniture.slot])
                     property int previous: 0
                     amount: furniture.bet
                     chipWidth: area.unit * 0.32
+                    showChips: !area.use3d
                     animated: root.animated
                     x: point.x - width / 2
-                    y: point.y - height / 2
+                    // In 3D only the amount is drawn, just in front of the chips on the felt.
+                    y: area.use3d ? point.y + area.unit * 0.14 : point.y - height / 2
 
                     onAmountChanged: {
                         if (amount > previous && previous === 0)
@@ -241,6 +278,7 @@ Rectangle {
                 }
                 Row {
                     spacing: 3
+                    visible: !area.use3d
                     x: area.px(area.markerPoints[furniture.slot]) - width / 2
                     y: area.py(area.markerPoints[furniture.slot]) - height / 2
                     PositionMarker { kind: "D"; size: area.unit * 0.32; visible: furniture.isDealer }
@@ -274,6 +312,7 @@ Rectangle {
                 id: seatItem
                 objectName: "seat" + slot
                 unit: area.unit
+                showCards: !area.use3d
                 playerStyle: style
                 animated: root.animated
                 animateDeal: root.dealing
@@ -288,8 +327,9 @@ Rectangle {
                     previousWon = wonAmount
                 }
                 // Centre the nameplate on the slot point.
-                x: area.px(area.seatPoints[slot]) - width / 2
-                y: area.py(area.seatPoints[slot]) - (height - plateHeight / 2)
+                readonly property point point: area.at(area.seatPoints[slot])
+                x: point.x - width / 2
+                y: point.y - (height - plateHeight / 2)
                 z: isHuman ? 2 : 1
             }
         }
@@ -297,9 +337,11 @@ Rectangle {
         // Hand result on the felt, with the hint to deal the next hand. It sits
         // where the pot was (the pot has been paid out once the hand is over).
         Rectangle {
+            id: resultBanner
             objectName: "resultBanner"
             anchors.horizontalCenter: parent.horizontalCenter
-            y: board.y - height - area.unit * 0.12
+            // Where the pot was: it has been paid out once the hand is over.
+            y: area.use3d ? area.at([0.5, 0.3]).y - height / 2 : board.y - height - area.unit * 0.12
             visible: root.game.sessionActive && !root.game.handInProgress && root.game.handNumber > 0 && root.game.message !== ""
             width: Math.min(area.tableWidth * 0.7, Math.max(resultText.implicitWidth, dealHint.implicitWidth) + 40)
             height: bannerColumn.implicitHeight + 14

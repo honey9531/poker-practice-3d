@@ -64,6 +64,10 @@ MIGRATIONS: list[list[str]] = [
 
 SCHEMA_VERSION = len(MIGRATIONS)
 
+# SQLite result codes that mean the file itself is damaged (not merely busy or unreadable).
+CORRUPTION_CODES = {sqlite3.SQLITE_CORRUPT, sqlite3.SQLITE_NOTADB}
+JOURNAL_SUFFIXES = ("-journal", "-wal", "-shm")
+
 
 class DatabaseError(RuntimeError):
     pass
@@ -72,6 +76,8 @@ class DatabaseError(RuntimeError):
 class Database:
     """Owns the SQLite connection. Use :meth:`transaction` for every write."""
 
+    BUSY_TIMEOUT = 5.0  # seconds to wait for another connection's lock
+
     def __init__(self, path: Path) -> None:
         self.path = path
         self.recovered_from: Path | None = None  # set when a corrupt file was moved aside
@@ -79,33 +85,55 @@ class Database:
         self._migrate()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path)
+        conn = sqlite3.connect(self.path, timeout=self.BUSY_TIMEOUT)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
     def _open(self) -> sqlite3.Connection:
+        """Connect, replacing the file only if it is genuinely corrupt.
+
+        Other failures (another instance holding a lock, permissions, I/O)
+        leave the file untouched and propagate; the application then runs
+        without saving history for this session.
+        """
         self.path.parent.mkdir(parents=True, exist_ok=True)
         conn = self._connect()
         try:
             status = conn.execute("PRAGMA quick_check").fetchone()[0]
             version = conn.execute("PRAGMA user_version").fetchone()[0]
-            if status != "ok":
-                raise sqlite3.DatabaseError(f"integrity check failed: {status}")
-            if version > SCHEMA_VERSION:
-                raise DatabaseError(
-                    f"Database {self.path} was created by a newer version (schema {version})"
-                )
         except sqlite3.DatabaseError as exc:
             conn.close()
-            backup = self.path.with_name(
-                f"{self.path.stem}.corrupt-{datetime.now():%Y%m%d-%H%M%S}{self.path.suffix}"
-            )
-            log.error("Database %s is unreadable (%s); moving it to %s", self.path, exc, backup)
-            self.path.replace(backup)
-            self.recovered_from = backup
-            conn = self._connect()
+            if exc.sqlite_errorcode not in CORRUPTION_CODES:
+                raise
+            return self._replace_corrupt(str(exc))
+        if status != "ok":
+            conn.close()
+            return self._replace_corrupt(f"integrity check failed: {status}")
+        if version > SCHEMA_VERSION:
+            conn.close()
+            raise DatabaseError(f"Database {self.path} was created by a newer version (schema {version})")
         return conn
+
+    def _replace_corrupt(self, reason: str) -> sqlite3.Connection:
+        """Move the corrupt file (and its journal files) aside and start a fresh database.
+
+        If the file cannot be moved (on Windows: still open elsewhere), the
+        OSError propagates and nothing is replaced.
+        """
+        backup = self.path.with_name(
+            f"{self.path.stem}.corrupt-{datetime.now():%Y%m%d-%H%M%S}{self.path.suffix}"
+        )
+        log.error("Database %s is unreadable (%s); moving it to %s", self.path, reason, backup)
+        self.path.replace(backup)
+        # A leftover journal belongs to the old file; SQLite would otherwise try
+        # to apply it to the new database.
+        for suffix in JOURNAL_SUFFIXES:
+            journal = self.path.with_name(self.path.name + suffix)
+            if journal.exists():
+                journal.replace(backup.with_name(backup.name + suffix))
+        self.recovered_from = backup
+        return self._connect()
 
     def _migrate(self) -> None:
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]

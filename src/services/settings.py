@@ -45,6 +45,10 @@ _SESSION_CHOICES = {
 
 AUTO_DEAL_DELAY_MS = 2500
 
+TABLE_STYLES = ("3d", "2d")  # 3D scene, or the classic flat table
+# Card back designs (assets/cards/back_<name>.svg); every card in play uses the chosen one.
+CARD_BACKS = ("navy", "crimson", "ruby", "emerald")
+
 
 @dataclass(frozen=True, slots=True)
 class AppSettings:
@@ -52,6 +56,8 @@ class AppSettings:
     analysis_mode: bool = False
     auto_deal: bool = False
     chip_scheme: str = "classic"
+    table_style: str = "3d"
+    card_back: str = "navy"
     session_defaults: Mapping[str, Any] = field(default_factory=lambda: dict(DEFAULT_SESSION))
     window: Mapping[str, int] = field(default_factory=dict)  # x, y, width, height, maximized
 
@@ -64,6 +70,8 @@ class AppSettings:
             return value if isinstance(value, bool) else default
 
         scheme = values.get("chip_scheme", settings.chip_scheme)
+        table_style = values.get("table_style", settings.table_style)
+        card_back = values.get("card_back", settings.card_back)
         stored_session = values.get("session_defaults")
         session = dict(DEFAULT_SESSION)
         if isinstance(stored_session, Mapping):
@@ -76,6 +84,8 @@ class AppSettings:
             analysis_mode=flag("analysis_mode", settings.analysis_mode),
             auto_deal=flag("auto_deal", settings.auto_deal),
             chip_scheme=scheme if scheme in CHIP_SCHEMES else settings.chip_scheme,
+            table_style=table_style if table_style in TABLE_STYLES else settings.table_style,
+            card_back=card_back if card_back in CARD_BACKS else settings.card_back,
             session_defaults=session,
             window=cls.clean_window(values.get("window")),
         )
@@ -86,6 +96,8 @@ class AppSettings:
             "analysis_mode": self.analysis_mode,
             "auto_deal": self.auto_deal,
             "chip_scheme": self.chip_scheme,
+            "table_style": self.table_style,
+            "card_back": self.card_back,
             "session_defaults": dict(self.session_defaults),
             "window": dict(self.window),
         }

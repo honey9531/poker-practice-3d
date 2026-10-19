@@ -255,18 +255,26 @@ class GameSession:
             raise SessionError("No opponent is to act")
         hand = self.hand
         strategy = self.strategies[seat]
-        action = strategy.decide(observe(hand, seat, self.tendencies))
         event_index = len(hand.events)
-        reason = getattr(strategy, "last_reason", "")
+        # A strategy must never stall the table: if it fails or chooses an
+        # illegal action, the opponent checks, or folds when it cannot check.
         try:
-            self._act(seat, action, hand.action_count)
-            if reason:
-                self._reasons.append((seat, event_index, reason))
-        except IllegalActionError:
-            # A strategy must never stall the table: fall back to the safest legal action.
-            log.error("Strategy for seat %s chose illegal %s; falling back", seat, action)
-            legal = hand.legal_actions()
-            self._act(seat, Action.check() if legal.can_check else Action.fold(), hand.action_count)
+            action = strategy.decide(observe(hand, seat, self.tendencies))
+        except Exception:
+            log.exception("Strategy for seat %s failed; falling back", seat)
+            action = None
+        if action is not None:
+            try:
+                self._act(seat, action, hand.action_count)
+            except IllegalActionError:
+                log.error("Strategy for seat %s chose illegal %s; falling back", seat, action)
+            else:
+                reason = getattr(strategy, "last_reason", "")
+                if reason:
+                    self._reasons.append((seat, event_index, reason))
+                return next(e for e in reversed(hand.events) if isinstance(e, PlayerActed))
+        legal = hand.legal_actions()
+        self._act(seat, Action.check() if legal.can_check else Action.fold(), hand.action_count)
         return next(e for e in reversed(hand.events) if isinstance(e, PlayerActed))
 
     def _act(self, seat: int, action: Action, step: int) -> None:
