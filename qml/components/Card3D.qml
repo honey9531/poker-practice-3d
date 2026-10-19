@@ -18,6 +18,14 @@ Node {
     property real tilt: 0
 
     readonly property real cardHeight: cardWidth * 88 / 63
+    // Screen pixels per scene unit where the card is seen (from the table's camera).
+    property real pixelsPerUnit: 4
+    // The artwork is rasterised at about 1.6x the card's size on screen: sharp, without
+    // relying on blurry mipmap levels of a much larger image. Steps of 32 px avoid
+    // re-rendering on every small resize.
+    readonly property int textureWidth: Math.max(128, Math.min(1024,
+        Math.ceil(cardWidth * pixelsPerUnit * 1.6 / 32) * 32))
+    readonly property int textureHeight: Math.round(textureWidth * 88 / 63)
     readonly property bool showingFace: card !== "" && faceUp
 
     // 0 = face up, 180 = face down.
@@ -84,16 +92,22 @@ Node {
                     eulerRotation.x: -90
                     scale: Qt.vector3d(root.cardWidth / 100, root.cardHeight / 100, 1)
                     visible: root.card !== ""
+                    // Unlit: the face always shows the artwork's true colours, whatever the lights do.
                     materials: PrincipledMaterial {
                         baseColorMap: Texture {
-                            source: root.card !== "" ? Qt.resolvedUrl("../../assets/cards/" + root.card + ".svg") : ""
+                            sourceItem: Image {
+                                width: root.textureWidth
+                                height: root.textureHeight
+                                source: root.card !== "" ? Qt.resolvedUrl("../../assets/cards/" + root.card + ".svg") : ""
+                                sourceSize: Qt.size(width, height)
+                                smooth: true
+                            }
                             generateMipmaps: true
                             mipFilter: Texture.Linear
                         }
                         alphaMode: PrincipledMaterial.Mask
                         alphaCutoff: 0.5
-                        roughness: 0.55
-                        specularAmount: 0.2
+                        lighting: PrincipledMaterial.NoLighting
                     }
                 }
 
@@ -134,7 +148,13 @@ Node {
 
     Texture {
         id: cardBack
-        source: Qt.resolvedUrl("../../assets/cards/back_" + Settings.cardBack + ".svg")
+        sourceItem: Image {
+            width: root.textureWidth
+            height: root.textureHeight
+            source: Qt.resolvedUrl("../../assets/cards/back_" + Settings.cardBack + ".svg")
+            sourceSize: Qt.size(width, height)
+            smooth: true
+        }
         generateMipmaps: true
         mipFilter: Texture.Linear
     }

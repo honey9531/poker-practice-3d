@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick3D
+import QtQuick.Window
 import PokerPractice.Bridge
 
 // The poker table as a 3D scene: felt, rail, cards, chips and position pucks.
@@ -39,6 +40,13 @@ Item {
     readonly property real unit: {
         const left = projectFraction(0, 0.5), right = projectFraction(1, 0.5)
         return Math.max(52, Math.min(160, (right.x - left.x) / 12))
+    }
+
+    // Device pixels per scene unit at the human's cards (the nearest, so the largest
+    // on screen); cards size their artwork from it.
+    readonly property real cardPixelsPerUnit: {
+        const z = world(holePoints[0]).z
+        return (project(10, 0, z).x - project(0, 0, z).x) / 10 * Screen.devicePixelRatio
     }
 
     property bool ready: false
@@ -365,6 +373,7 @@ Item {
                             highlighted: code !== "" && root.game.winningCards.indexOf(code) >= 0
                             animated: root.animated
                             cardWidth: root.boardCardWidth
+                            pixelsPerUnit: root.cardPixelsPerUnit
 
                             Timer {
                                 id: flipTimer
@@ -431,6 +440,7 @@ Item {
                                                   seat.home.z)
                             eulerRotation.y: (0.5 - index) * (seat.isHuman ? 3 : 7)
                             cardWidth: seat.cardWidth
+                            pixelsPerUnit: root.cardPixelsPerUnit
                             // The human's cards lean towards the camera; so do opponents' cards once shown.
                             tilt: seat.isHuman ? 30 : (showingFace ? 30 : 0)
                             opacity: seat.folded ? 0.45 : 1
