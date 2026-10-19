@@ -1,0 +1,27 @@
+name: Windows build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build, test and verify the executable
+        shell: pwsh
+        run: packaging\build_windows.ps1
+
+      - name: Upload the application
+        uses: actions/upload-artifact@v4
+        with:
+          name: PokerPractice-windows
+          path: dist/PokerPractice
