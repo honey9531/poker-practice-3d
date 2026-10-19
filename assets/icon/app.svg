@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny" viewBox="0 0 256 256">
+<defs>
+<radialGradient id="body" cx="0.42" cy="0.36" r="0.75">
+<stop offset="0" stop-color="#1d7a4f"/><stop offset="1" stop-color="#0b3d26"/>
+</radialGradient>
+</defs>
+<circle cx="128" cy="128" r="120" fill="url(#body)" stroke="#06261a" stroke-width="6"/>
+<rect x="221.0" y="111.0" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(90 232.0 128.0)"/><rect x="190.5" y="184.5" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(135 201.5 201.5)"/><rect x="117.0" y="215.0" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(180 128.0 232.0)"/><rect x="43.5" y="184.5" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(225 54.5 201.5)"/><rect x="13.0" y="111.0" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(270 24.0 128.0)"/><rect x="43.5" y="37.5" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(315 54.5 54.5)"/><rect x="117.0" y="7.0" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(360 128.0 24.0)"/><rect x="190.5" y="37.5" width="22" height="34" rx="4" fill="#f1e7cf" transform="rotate(405 201.5 54.5)"/>
+<circle cx="128" cy="128" r="80" fill="none" stroke="#f1e7cf" stroke-width="5" stroke-dasharray="10 8"/>
+<circle cx="128" cy="128" r="64" fill="#f6efdf" stroke="#c9a45a" stroke-width="5"/>
+<path transform="translate(80 78) scale(0.96)"
+ d="M50 0 C78 24 98 41 98 61 C98 76 87 85 74 85 C64 85 57 80 53 72 C54 85 59 94 68 100 L32 100
+ C41 94 46 85 47 72 C43 80 36 85 26 85 C13 85 2 76 2 61 C2 41 22 24 50 0 Z" fill="#14130f"/>
+</svg>
