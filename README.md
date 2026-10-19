@@ -220,8 +220,9 @@ implemented, and the definitions of each statistic.
 - **"The history database was damaged and has been reset":** the old file was kept as
   `poker_practice.corrupt-<date>.db` next to the new one. The app continues with an empty
   history.
-- **"Hand history cannot be saved this session":** the data directory was not writable. The app
-  keeps working, but nothing is saved until the folder is writable again.
+- **"Hand history cannot be saved this session":** the data directory was not writable, or
+  another copy of the app was using the database. The app keeps working, but nothing is saved
+  this session; the existing history is left untouched.
 - **Starting over:** Settings → *Delete hand history and statistics*, or delete
   `poker_practice.db` from the data directory while the app is closed.
 - **Windows SmartScreen or antivirus warnings:** the executable is not code-signed, and

@@ -222,6 +222,27 @@ def test_illegal_strategy_action_falls_back_safely():
     assert event.action in (ActionType.CHECK, ActionType.FOLD)
 
 
+def test_failing_strategy_falls_back_and_hands_finish():
+    class Crashing:
+        name = "Crashing"
+
+        def decide(self, ctx: DecisionContext) -> Action:
+            raise ZeroDivisionError("bug in a strategy")
+
+    session = GameSession(SessionConfig(opponents=2, seed=4), strategy_factory=lambda *a: Crashing())
+    for _ in range(3):
+        session.start_hand()
+        play_until_human_or_end(session)
+        while not session.hand_over:
+            session.apply_human_action("check" if session.hand.legal_actions().can_check else "call",
+                                       0, session.hand.action_count)
+            play_until_human_or_end(session)
+        if session.session_over:
+            break
+    acted = [e for e in session.hand.events if isinstance(e, PlayerActed) and e.seat != HUMAN_SEAT]
+    assert all(e.action in (ActionType.CHECK, ActionType.FOLD) for e in acted)
+
+
 def test_observe_exposes_only_own_cards():
     session = new_session(opponents=2, seed=1)
     session.start_hand()

@@ -282,9 +282,11 @@ Windows). `services/database.py`:
 - **Migrations:** ordered statement lists; `PRAGMA user_version` records the applied schema;
   each migration runs in one transaction. A database from a newer version is refused rather
   than modified.
-- **Corruption:** at open, `PRAGMA quick_check` runs; an unreadable file is renamed to
-  `poker_practice.corrupt-<timestamp>.db` and a fresh database is created. The main menu shows a
-  notice. If the location is unusable, the app runs with an in-memory database and says so.
+- **Corruption:** at open, `PRAGMA quick_check` runs. Only a damaged file (a failed check, or
+  SQLite reporting `CORRUPT`/`NOTADB`) is renamed to `poker_practice.corrupt-<timestamp>.db`,
+  together with any journal files, and a fresh database is created; the main menu shows a notice.
+  Anything else — another instance holding a lock, permissions, I/O errors — leaves the file
+  untouched, and the app runs with an in-memory database for that session and says so.
 - Every write uses `Database.transaction()` (commit or roll back).
 
 Schema v1: `sessions`, `hands` (summary columns + versioned JSON event log), `hand_players`

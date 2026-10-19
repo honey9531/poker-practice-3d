@@ -47,7 +47,8 @@ def _wait_until(condition: Callable[[], bool], timeout_ms: int = 5000) -> None:
 def _report(line: str) -> None:
     # Printed for console runs and logged for windowed builds (no console).
     print(line)
-    log.info("Self-test: %s", line.strip())
+    text = line.strip()
+    log.info("%s", text if text.startswith("Self-test") else f"Self-test: {text}")
 
 
 def _check(condition: bool, message: str) -> None:

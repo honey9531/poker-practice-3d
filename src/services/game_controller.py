@@ -219,10 +219,14 @@ class GameController(QObject):
         if session is None or session.opponent_to_act is None:
             return
         try:
+            # Strategy failures are absorbed by the session (the opponent checks
+            # or folds), so reaching the handler means the engine itself refused
+            # a check/fold: report it rather than retrying forever.
             session.play_opponent_action()
-        except (HandError, SessionError) as exc:  # a strategy bug must not stall the table
+        except Exception as exc:
             log.exception("Opponent action failed")
             self.errorOccurred.emit(f"Opponent error: {exc}")
+            self._publish()
             return
         self._pump()
 

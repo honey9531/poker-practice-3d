@@ -221,6 +221,8 @@ Rectangle {
             // In 3D the pot's chips are on the felt and only the amounts are shown, just below them.
             y: area.use3d ? area.at([0.5, 0.3]).y : area.py([0, 0.38]) - height
             showChips: !area.use3d
+            // The result banner takes the pot's place once the hand is over.
+            visible: !resultBanner.visible
             pots: root.game.pots
             totalPot: root.game.totalPot
             chipWidth: area.unit * 0.36
@@ -335,6 +337,7 @@ Rectangle {
         // Hand result on the felt, with the hint to deal the next hand. It sits
         // where the pot was (the pot has been paid out once the hand is over).
         Rectangle {
+            id: resultBanner
             objectName: "resultBanner"
             anchors.horizontalCenter: parent.horizontalCenter
             // Where the pot was: it has been paid out once the hand is over.
